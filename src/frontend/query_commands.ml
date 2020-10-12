@@ -754,24 +754,19 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
     Mconfig.(config.merlin.source_path)
 
   | Occurrences (`Ident_at pos) ->
-    let typer = Mpipeline.typer_result pipeline in
-    let str = Mbrowse.of_typedtree (Mtyper.get_typedtree typer) in
+    let typed_tree = Mpipeline.typer_result pipeline |> Mtyper.get_typedtree in 
+    let browse = Mbrowse.of_typedtree typed_tree in 
     let pos = Mpipeline.get_lexing_pos pipeline pos in
     let tnode =
-      let should_ignore_tnode = function
+      let is_wildcard_pat = function
         | Browse_raw.Pattern {pat_desc = Typedtree.Tpat_any; _} -> true
         | _ -> false
       in
-      let rec find = function
-        | [] -> Browse_tree.dummy
-        | (env, node)::rest ->
-          if should_ignore_tnode node
-          then find rest
-          else Browse_tree.of_node ~env node
+      List.find_some ~f:(fun (_, node) -> not (is_wildcard_pat node)) (Mbrowse.enclosing pos [browse]) 
+      |> Option.map ~f:(fun (env, node) -> Browse_tree.of_node ~env node) 
+      |> Option.value ~default:Browse_tree.dummy
       in
-      find (Mbrowse.enclosing pos [str])
-    in
-    let str = Browse_tree.of_browse str in
+    let browse_tree = Browse_tree.of_browse browse in
     let get_loc {Location.txt = _; loc} = loc in
     let ident_occurrence () =
       let paths = Browse_raw.node_paths tnode.Browse_tree.t_node in
@@ -793,12 +788,12 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
       | [] -> []
       | (path :: _) ->
         let path = path.Location.txt in
-        let ts = Browse_tree.all_occurrences path str in
+        let ts = Browse_tree.all_occurrences path browse_tree in
         let loc (_t,paths) = List.map ~f:get_loc paths in
         List.concat_map ~f:loc ts
 
     and constructor_occurrence d =
-      let ts = Browse_tree.all_constructor_occurrences (tnode,d) str in
+      let ts = Browse_tree.all_constructor_occurrences (tnode,d) browse_tree in
       List.map ~f:get_loc ts
 
     in
