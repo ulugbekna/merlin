@@ -217,3 +217,33 @@ Test getting occurrences of a function arg alias then used in record literal:
     ],
     "notifications": []
   }
+
+Test getting occurrences of a module name:
+
+  $ $MERLIN single occurrences -identifier-at 21:8 -filename ./basic.ml < ./basic.ml
+  {
+    "class": "return",
+    "value": [
+      {
+        "start": {
+          "line": 21,
+          "col": 7
+        },
+        "end": {
+          "line": 21,
+          "col": 8
+        }
+      },
+      {
+        "start": {
+          "line": 25,
+          "col": 9
+        },
+        "end": {
+          "line": 25,
+          "col": 10
+        }
+      },
+    ],
+    "notifications": []
+  }
