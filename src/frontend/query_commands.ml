@@ -792,7 +792,8 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
         let loc (_t,paths) = List.map ~f:get_loc paths in
         List.concat_map ~f:loc ts
 
-    and constructor_occurrence d =
+    in
+    let constructor_occurrence d =
       let ts = Browse_tree.all_constructor_occurrences (tnode,d) browse_tree in
       List.map ~f:get_loc ts
 
