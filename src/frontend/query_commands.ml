@@ -765,7 +765,7 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
       List.find_some ~f:(fun (_, node) -> not (is_wildcard_pat node)) (Mbrowse.enclosing pos [browse]) 
       |> Option.map ~f:(fun (env, node) -> Browse_tree.of_node ~env node) 
       |> Option.value ~default:Browse_tree.dummy
-      in
+    in
     let browse_tree = Browse_tree.of_browse browse in
     let get_loc {Location.txt = _; loc} = loc in
     let ident_occurrence () =
