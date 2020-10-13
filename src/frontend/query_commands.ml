@@ -798,8 +798,9 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
         | Some path -> 
           let path = path.Location.txt in
           let ts = Browse_tree.all_occurrences path browse_tree in
-          let loc (_t,paths) = List.map ~f:get_loc paths in
-          List.concat_map ~f:loc ts
+          let prefix_occurrences = Browse_tree.all_occurrences_of_prefix ~strict_prefix:true path tnode.Browse_tree.t_node in 
+          let loc (_, paths) = List.map ~f:get_loc paths in
+          (List.concat_map ~f:loc ts) @ ( List.concat_map ~f:loc prefix_occurrences)
     in
     let locs_incr_sorted = 
       let loc_start l = l.Location.loc_start in
