@@ -770,7 +770,7 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
     let get_loc {Location.txt = _; loc} = loc in
     let ident_occurrence () =
       let paths = Browse_raw.node_paths tnode.Browse_tree.t_node in
-      let under_cursor p = Location_aux.compare_pos pos (get_loc p) = 0 in
+      let is_under_cursor p = Location_aux.compare_pos pos (get_loc p) = 0 in
       Logger.log ~section:"occurrences" ~title:"Occurrences paths" "%a"
         Logger.json (fun () ->
             let dump_path ({Location.txt; loc} as p) =
@@ -779,12 +779,12 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
               `Assoc [
                 "start", Lexing.json_of_position loc.Location.loc_start;
                 "end", Lexing.json_of_position loc.Location.loc_end;
-                "under_cursor", `Bool (under_cursor p);
+                "under_cursor", `Bool (is_under_cursor p);
                 "path", `String (to_string ())
               ]
             in
             `List (List.map ~f:dump_path paths));
-      match List.filter paths ~f:under_cursor with
+      match List.filter paths ~f:is_under_cursor with
       | [] -> []
       | (path :: _) ->
         let path = path.Location.txt in
