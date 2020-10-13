@@ -801,9 +801,12 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
           let loc (_t,paths) = List.map ~f:get_loc paths in
           List.concat_map ~f:loc ts
     in
-    let loc_start l = l.Location.loc_start in
-    let cmp l1 l2 = Lexing.compare_pos (loc_start l1) (loc_start l2) in
-    List.sort ~cmp locs
+    let locs_incr_sorted = 
+      let loc_start l = l.Location.loc_start in
+      let cmp l1 l2 = Lexing.compare_pos (loc_start l1) (loc_start l2) in
+      List.sort ~cmp locs
+    in 
+    locs_incr_sorted
 
   | Version ->
     Printf.sprintf "The Merlin toolkit version %s, for Ocaml %s\n"
