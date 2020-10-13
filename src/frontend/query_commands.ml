@@ -768,31 +768,7 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
     in
     let browse_tree = Browse_tree.of_browse browse in
     let get_loc {Location.txt = _; loc} = loc in
-    let ident_occurrence () =
-      let paths = Browse_raw.node_paths tnode.Browse_tree.t_node in
-      let is_under_cursor p = Location_aux.compare_pos pos (get_loc p) = 0 in
-      Logger.log ~section:"occurrences" ~title:"Occurrences paths" "%a"
-        Logger.json (fun () ->
-            let dump_path ({Location.txt; loc} as p) =
-              let ppf, to_string = Format.to_string () in
-              Printtyp.path ppf txt;
-              `Assoc [
-                "start", Lexing.json_of_position loc.Location.loc_start;
-                "end", Lexing.json_of_position loc.Location.loc_end;
-                "under_cursor", `Bool (is_under_cursor p);
-                "path", `String (to_string ())
-              ]
-            in
-            `List (List.map ~f:dump_path paths));
-      match List.filter paths ~f:is_under_cursor with
-      | [] -> []
-      | (path :: _) ->
-        let path = path.Location.txt in
-        let ts = Browse_tree.all_occurrences path browse_tree in
-        let loc (_t,paths) = List.map ~f:get_loc paths in
-        List.concat_map ~f:loc ts
 
-    in
     let constructor_occurrence d =
       let ts = Browse_tree.all_constructor_occurrences (tnode,d) browse_tree in
       List.map ~f:get_loc ts
@@ -801,7 +777,29 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
     let locs =
       match Browse_raw.node_is_constructor tnode.Browse_tree.t_node with
       | Some d -> constructor_occurrence d.Location.txt
-      | None -> ident_occurrence ()
+      | None -> 
+        let paths = Browse_raw.node_paths tnode.Browse_tree.t_node in
+        let is_under_cursor p = Location_aux.compare_pos pos (get_loc p) = 0 in
+        Logger.log ~section:"occurrences" ~title:"Occurrences paths" "%a"
+          Logger.json (fun () ->
+              let dump_path ({Location.txt; loc} as p) =
+                let ppf, to_string = Format.to_string () in
+                Printtyp.path ppf txt;
+                `Assoc [
+                  "start", Lexing.json_of_position loc.Location.loc_start;
+                  "end", Lexing.json_of_position loc.Location.loc_end;
+                  "under_cursor", `Bool (is_under_cursor p);
+                  "path", `String (to_string ())
+                ]
+              in
+              `List (List.map ~f:dump_path paths));
+        match List.filter paths ~f:is_under_cursor with
+        | [] -> []
+        | (path :: _) ->
+          let path = path.Location.txt in
+          let ts = Browse_tree.all_occurrences path browse_tree in
+          let loc (_t,paths) = List.map ~f:get_loc paths in
+          List.concat_map ~f:loc ts
     in
     let loc_start l = l.Location.loc_start in
     let cmp l1 l2 = Lexing.compare_pos (loc_start l1) (loc_start l2) in
