@@ -793,9 +793,9 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
                 ]
               in
               `List (List.map ~f:dump_path paths));
-        match List.filter paths ~f:is_under_cursor with
-        | [] -> []
-        | (path :: _) ->
+        match List.find_some ~f:is_under_cursor paths with 
+        | None -> []
+        | Some path -> 
           let path = path.Location.txt in
           let ts = Browse_tree.all_occurrences path browse_tree in
           let loc (_t,paths) = List.map ~f:get_loc paths in
