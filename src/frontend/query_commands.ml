@@ -479,9 +479,9 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
     let pos = Mpipeline.get_lexing_pos pipeline pos in
     begin match Raw_compat.select_open_node (Mtyper.node_at typer pos) with
       | None | Some (_, []) -> []
-      | Some (path, ((_, node) :: _)) ->
+      | Some (path, ((_, parent_node) :: _)) ->
         let paths =
-          Browse_tree.all_occurrences_of_prefix ~strict_prefix:true path node in
+          Browse_tree.all_occurrences_of_prefix ~strict_prefix:true path parent_node in
         let paths = List.concat_map ~f:snd paths in
         let rec path_to_string acc p =
           match Path.Nopos.view p with
