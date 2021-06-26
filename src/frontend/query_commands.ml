@@ -865,6 +865,80 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
     let cmp l1 l2 = Lexing.compare_pos (loc_start l1) (loc_start l2) in
     List.sort ~cmp locs
 
+  | Add_rec pos -> begin
+    let typer = Mpipeline.typer_result pipeline in
+    match Mtyper.get_typedtree typer with
+    | `Implementation impl ->
+      let structures = Mbrowse.of_typedtree (Mtyper.get_typedtree typer) in
+      let pos = Mpipeline.get_lexing_pos pipeline pos in
+      let enclosing = Mbrowse.enclosing pos [structures] in (
+      Logger.notify ~section:"add-rec" "%s" @@
+        (
+          String.concat ~sep:"\n" @@
+            List.map enclosing ~f:(fun (_, node) -> Browse_raw.string_of_node node)
+        )
+      ;
+      match enclosing with
+      | [] -> None
+      | (_env, leaf)::ancestors -> (
+
+        let rec find_ident_in_ancestors ident (ancestors: (Env.t * Browse_raw.node) list):
+          Location_aux.t option  =
+          match ancestors with
+          | [] -> None
+          | (_env, node) :: ancestors' -> (
+
+            match (node: Browse_raw.node) with
+            | Browse_raw.Expression {
+                exp_desc = Texp_let (Asttypes.Nonrecursive, bdgs, _) ; _ } -> (
+
+              try
+                List.find_map bdgs ~f:(fun { Typedtree.vb_pat; vb_loc; _ } -> (
+                    match vb_pat.pat_desc with
+                    | Tpat_var ( _ident , { txt; loc }) ->
+                      Logger.notify ~section:"add-rec value binding" "%s\n" txt;
+                      if String.equal txt ident then
+                        Some loc
+                      else None
+                    | _ -> find_ident_in_ancestors ident ancestors'
+                  )
+                )
+                |> Option.return
+              with
+              | Not_found -> find_ident_in_ancestors ident ancestors'
+
+            )
+
+            | Value_binding { vb_pat; vb_expr; vb_attributes; vb_loc } -> (
+
+              match vb_pat.pat_desc with
+              | Tpat_var ( _ident , { txt; loc }) ->
+                Logger.notify ~section:"add-rec value binding" "%s\n" txt;
+                if String.equal txt ident then
+                  Some loc
+                else find_ident_in_ancestors ident ancestors'
+              | _ ->
+                Logger.notify ~section:"add-rec value binding" "%s\n" "none";
+                find_ident_in_ancestors ident ancestors'
+
+            )
+            | _ -> find_ident_in_ancestors ident ancestors'
+
+          )
+
+        in
+
+        match reconstruct_identifier pipeline pos None with
+        | [] -> None
+        | { txt = ident; loc } :: _ ->
+          Logger.notify ~section:"add-rec ident = " "%s" ident;
+          find_ident_in_ancestors ident ancestors
+      )
+    )
+
+    | `Interface _intf -> None
+  end
+
   | Version ->
     Printf.sprintf "The Merlin toolkit version %s, for Ocaml %s\n"
       My_config.version Sys.ocaml_version;

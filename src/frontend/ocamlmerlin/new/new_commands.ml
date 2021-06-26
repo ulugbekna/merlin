@@ -642,6 +642,20 @@ The return value has the shape:
     end
   ;
 
+  command "add-rec"
+    ~doc:"Add a `rec` keyword if applicable for an unbound value at the given position"
+    ~spec: [
+      arg "-position" "<position> Position "
+        (marg_position (fun pos _pos -> pos));
+    ]
+    ~default:`None
+    begin fun buffer -> function
+      | `None -> failwith "-position <pos> is mandatory"
+      | #Msource.position as pos ->
+        run buffer (Query_protocol.Add_rec pos)
+    end
+  ;
+
   (* Used only for testing *)
   command "dump"
     ~spec:[

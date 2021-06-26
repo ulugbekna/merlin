@@ -196,5 +196,8 @@ type _ t =
   | Occurrences(* *)
     : [`Ident_at of Msource.position]
     -> Location.t list t
+  | Add_rec
+    : Msource.position
+    -> Location_aux.t option t
   | Version
     : string t

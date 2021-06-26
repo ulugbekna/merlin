@@ -417,5 +417,8 @@ let json_of_response (type a) (query : a t) (response : a) : json =
   | Occurrences _, locations ->
     `List (List.map locations
              ~f:(fun loc -> with_location loc []))
+  | Add_rec _, None -> `Null
+  | Add_rec _, Some loc ->
+    with_location loc []
   | Version, version ->
     `String version
