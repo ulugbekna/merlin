@@ -17,3 +17,9 @@ let withRecordLiteralPunned value =
 
 let withAlias (value as num) =
   num + num
+
+module M = struct
+  let u = ()  
+end
+
+let u = M.u
