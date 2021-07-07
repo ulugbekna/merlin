@@ -116,6 +116,10 @@ module List = struct
       match f x with
       | None -> find_map ~f xs
       | Some x' -> x'
+  
+  let find_map_opt ~f x = 
+    try Some (find_map ~f x) with
+    | Not_found -> None
 
   let rec map_end ~f l1 l2 =
     match l1 with
