@@ -812,11 +812,14 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
     Mconfig.(config.merlin.source_path)
 
   | Occurrences (`Ident_at pos) ->
+    (* util *)
+    let get_loc {Location.txt = _; loc} = loc in
+
     let typer = Mpipeline.typer_result pipeline in
     let str = Mbrowse.of_typedtree (Mtyper.get_typedtree typer) in
-    let pos = Mpipeline.get_lexing_pos pipeline pos in
-    let enclosing = Mbrowse.enclosing pos [str] in
-    let curr_node =
+    let curr_pos = Mpipeline.get_lexing_pos pipeline pos in
+    let enclosing = Mbrowse.enclosing curr_pos [str] in
+    let (curr_node : Browse_tree.t) =
       let is_wildcard_pat = function
         | Browse_raw.Pattern {pat_desc = Typedtree.Tpat_any; _} -> true
         | _ -> false
@@ -827,42 +830,44 @@ let dispatch pipeline (type a) : a Query_protocol.t -> a =
       |> Option.map ~f:(fun (env, node) -> Browse_tree.of_node ~env node)
       |> Option.value ~default:Browse_tree.dummy
     in
-    let str = Browse_tree.of_browse str in
-    let get_loc {Location.txt = _; loc} = loc in
-    let ident_occurrence () =
-      let paths = Browse_raw.node_paths curr_node.Browse_tree.t_node in
-      let under_cursor p = Location_aux.compare_pos pos (get_loc p) = 0 in
-      Logger.log ~section:"occurrences" ~title:"Occurrences paths" "%a"
-        Logger.json (fun () ->
-            let dump_path ({Location.txt; loc} as p) =
-              let ppf, to_string = Format.to_string () in
-              Printtyp.path ppf txt;
-              `Assoc [
-                "start", Lexing.json_of_position loc.Location.loc_start;
-                "end", Lexing.json_of_position loc.Location.loc_end;
-                "under_cursor", `Bool (under_cursor p);
-                "path", `String (to_string ())
-              ]
-            in
-            `List (List.map ~f:dump_path paths));
-      match List.filter paths ~f:under_cursor with
-      | [] -> []
-      | (path :: _) ->
-        let path = path.Location.txt in
-        let ts = Browse_tree.all_occurrences path str in
-        let loc (_t,paths) = List.map ~f:get_loc paths in
-        List.concat_map ~f:loc ts
-
-    in
-    let constructor_occurrence d =
-      let ts = Browse_tree.all_constructor_occurrences (curr_node,d) str in
-      List.map ~f:get_loc ts
-
-    in
+    let (str : Browse_tree.t) = Browse_tree.of_browse str in
     let locs =
-      match Browse_raw.node_is_constructor curr_node.Browse_tree.t_node with
-      | Some d -> constructor_occurrence d.Location.txt
-      | None -> ident_occurrence ()
+      match Browse_raw.node_is_constructor curr_node.t_node with
+      | Some {txt; _} -> (
+        Browse_tree.all_constructor_occurrences (curr_node, txt) str 
+        |> List.map ~f:get_loc
+      )
+      | None -> begin
+        let under_cursor p = 
+          Location_aux.compare_pos curr_pos (get_loc p) = 0 
+        in
+  
+        let paths = 
+          Browse_raw.node_paths curr_node.t_node 
+        in
+
+        Logger.log ~section:"occurrences" ~title:"Occurrences paths" "%a"
+          Logger.json (fun () ->
+              let dump_path ({Location.txt; loc} as p) =
+                let ppf, to_string = Format.to_string () in
+                Printtyp.path ppf txt;
+                `Assoc [
+                  "start", Lexing.json_of_position loc.Location.loc_start;
+                  "end", Lexing.json_of_position loc.Location.loc_end;
+                  "under_cursor", `Bool (under_cursor p);
+                  "path", `String (to_string ())
+                ]
+              in
+              `List (List.map ~f:dump_path paths));
+  
+        match List.find_some paths ~f:under_cursor with 
+        | None -> []
+        | Some {Location. txt = path; _ } ->
+          let ts = 
+            Browse_tree.all_occurrences_of_prefix ~strict_prefix:false path str.t_node 
+          in
+          List.concat_map ts ~f:(fun (_, paths) -> List.map paths ~f:get_loc)
+      end
     in
     let loc_start l = l.Location.loc_start in
     let cmp l1 l2 = Lexing.compare_pos (loc_start l1) (loc_start l2) in
