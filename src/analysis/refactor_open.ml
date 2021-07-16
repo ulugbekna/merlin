@@ -32,7 +32,12 @@ let get_rewrites ~mode typer pos =
       else
         match qual_or_unqual_path mode leftmost_ident orig_path path with
         | parts when same_longident parts lid -> None
-        | parts -> Some (String.concat ~sep:"." parts, loc)
+        | parts -> 
+          let old_lident = Longident.flatten lid |> String.concat ~sep:"." in
+          let new_lident = (String.concat ~sep:"." parts) in
+          if mode = `Unqualify && (String.length new_lident > String.length old_lident) 
+          then None 
+          else Some (new_lident, loc)
         | exception Not_found -> None
     )
     |> List.sort_uniq ~cmp:(fun (_,l1) (_,l2) -> Location_aux.compare l1 l2)
